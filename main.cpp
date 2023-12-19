@@ -116,7 +116,7 @@ int main() {
                 if(agentPtr->mission()) {
                     agentPtr->percieve(world);
                     dir = agentPtr->decide(mov);
-                    mov = agentPtr->move(world, dir);
+                    mov = agentPtr->move(world, mov, dir);
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 } else {
                     //TODO: Mission accomplished

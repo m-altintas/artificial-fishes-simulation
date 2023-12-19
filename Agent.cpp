@@ -130,31 +130,29 @@ bool Agent::isPathClear(Vector &dir, std::vector<EntityPtr> visibleEntities) {
         return true;
 }
 
-
 //move
-Vector Agent::move(World& world, Vector& dir) {
+Vector Agent::move(World& world, Vector& oldMov, Vector& dir) {
     //mov - movement vector
     float alpha = 1 - ((getWeight() * getSpeed()) / 100);
-    Vector v((1 - alpha) * mov.getI() + (alpha)*dir.getI(), (1 - alpha) * mov.getJ() + (alpha)*dir.getJ());
-    mov.setI(v.getI());
-    mov.setJ(v.getJ());
-    mov.makeUnit();
+    Vector mov((1 - alpha) * oldMov.getI() + (alpha)*dir.getI(), (1 - alpha) * oldMov.getJ() + (alpha)*dir.getJ());
 
     //move this agent
-    this->setX(this->getX() + 2 * (v.getI()));
-    this->setY(this->getY() + 2 * (v.getJ()));
+    this->setX(this->getX() + 2 * (mov.getI()));
+    this->setY(this->getY() + 2 * (mov.getJ()));
 
     //move this agent's indicator/eye
-    this->setIndicX((this->getX() + 2) + 2 * (v.getI()));
-    this->setIndicY((this->getY() + 2) + 2 * (v.getJ()));
+    this->setEyeX((this->getX() + 2) + 2 * (mov.getI()));
+    this->setEyeY((this->getY() + 2) + 2 * (mov.getJ()));
 
     //control world boundaries and stay inside
-    if (this->getX() + this->getSize() > world.getWidthMod())
-        this->setX(world.getWidthMod() - this->getSize());
+    if (this->getX() + this->getWidth() > world.getWidth())
+        this->setX(world.getWidth() - this->getWidth());
     if (this->getX() < 0)
         this->setX(0);
-    if (this->getY() + this->getSize() > world.getHeightMod())
-        this->setY(world.getHeightMod() - this->getSize());
+    if (this->getY() + this->getHeight() > world.getHeight())
+        this->setY(world.getHeight() - this->getHeight());
     if (this->getY() < 0)
         this->setY(0);
+
+    return mov;
 }
