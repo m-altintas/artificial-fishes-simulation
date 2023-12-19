@@ -1,81 +1,145 @@
 #include "Agent.h"
-#include <math.h>
-#include "Vector.h"
-#include "World.h"
-#include "Target.h"
+
+typedef std::shared_ptr<Entity> EntityPtr;
 
 //-------Constructors
-Agent::Agent(float cX, float cY, float cWeight, float cSpeed, int cWidth, int cHeight) {
-    x = cX;
-    y = cY;
-    indicX = cX;
-    indicY = cY;
+Agent::Agent() {}
+Agent::~Agent() {}
+Agent::Agent(float cX, float cY, float cSight, float cWeight, float cSpeed, int cWidth, int cHeight) {
+    setX(cX);
+    setY(cY);
+    eyeX = cX;
+    eyeY = cY;
+    sight = cSight;
     weight = cWeight;
     speed = cSpeed;
-    width = cWidth;
-    height = cHeight;
+    setWidth(cWidth);
+    setHeight(cHeight);
+}
+Agent::Agent(float cX, float cY, float cSight) {
+    setX(cX);
+    setY(cY);
+    sight = cSight;
 }
 
 //-------Getters
-float Agent::getX() { return x; }
-float Agent::getY() { return y; }
-float Agent::getIndicX() { return indicX; }
-float Agent::getIndicY() { return indicY; }
+float Agent::getEyeX() { return eyeX; }
+float Agent::getEyeY() { return eyeY; }
+float Agent::getSight() { return sight; }
 float Agent::getWeight() { return weight; }
 float Agent::getSpeed() { return speed; }
-int Agent::getWidth() { return width; }
-int Agent::getHeight() { return height; }
+std::vector<EntityPtr> Agent::getPercEntities() { return percEntities; }
 
 //-------Setters
-void Agent::setX(float newX) { x = newX; }
-void Agent::setY(float newY) { y = newY; }
-void Agent::setIndicX(float newIndicX) { indicX = newIndicX; }
-void Agent::setIndicY(float newIndicY) { indicY = newIndicY; }
+void Agent::setEyeX(float newEyeX) { eyeX = newEyeX; }
+void Agent::setEyeY(float newEyeY) { eyeY = newEyeY; }
+void Agent::setSight(float newSight) { sight = newSight; }
 void Agent::setWeight(float newWeight) { weight = newWeight; }
 void Agent::setSpeed(float newSpeed) { speed = newSpeed; }
-void Agent::setWidth(int newWidth) { width = newWidth; }
-void Agent::setHeight(int newHeight) { height = newHeight; }
+void Agent::setPercEntities(std::vector<EntityPtr> newPercEntities) { percEntities = newPercEntities; }
 
 //-------Methods
-    //percieve
-float Agent::percieve(Target& target) {
-    //distance between this agent and the target
-    float x, y, distance;
-    x = pow((target.getX() - this->getX()), 2);
-    y = pow((target.getY() - this->getY()), 2);
-    distance = sqrt(x + y) - 5;
-    if (distance < 0)
-        distance = 0;
-    return distance;
+void Agent::percieve(World& world) {
+    float x = getX();
+    float y = getY();
+    float sight = getSight();
+    std::vector<EntityPtr> percEntities = world.getFieldOfView(x, y, sight);
+    setPercEntities(percEntities);
 }
 
-//deciede
-bool Agent::decide(Target& target, Vector& v1, Vector& v2) {
-    float alpha = 0.85;
-    //v1 - distance vector
-    v1.setI(target.getX() - this->getX());
-    v1.setJ(target.getY() - this->getY());
-    v1.makeUnit();
+Vector Agent::decide(Vector& mov) {
+    std::vector<EntityPtr> visibleEntities = getPercEntities();
 
-    //v2 - direction vector
-    Vector v((1 - alpha) * v2.getI() + (alpha)*v1.getI(), (1 - alpha) * v2.getJ() + (alpha)*v1.getJ());
-    v2.setI(v.getI());
-    v2.setJ(v.getJ());
-    v2.makeUnit();
+    //If the target is visible and there's a clear path, move directly towards it
+    EntityPtr target = this->findTarget(visibleEntities);
+    bool isTargetVisible = (target != nullptr) ? true : false;
+    bool isPathToTargetClear = (isTargetVisible) ? this->isPathToTargetClear(visibleEntities, target) : false;
 
-    //catch control
-    float xD, yD, distanceD;
-    xD = pow((target.getX() - this->getX()), 2);
-    yD = pow((target.getY() - this->getY()), 2);
-    distanceD = sqrt(xD + yD);
-    if (distanceD < 6)
-        return 0;
-    else
-        return 1;
+    if(isTargetVisible && isPathToTargetClear) {
+        Vector newDirection(target->getX() - this->getX(), target->getY() - this->getY());
+        return newDirection;
+    }
+
+    //# Check for obstacles and decide movement
+    Vector tempDir(mov.getI(), mov.getJ());
+    bool isFirstPhaseComplete = false;
+    while(true) {
+        if(isFirstPhaseComplete) {
+            if(tempDir.getI() == mov.getI() && tempDir.getJ() == mov.getJ())
+                return Vector(-1,0);
+        }
+        if(tempDir.getI() == 0 && tempDir.getJ() == 1) {
+            tempDir.setJ(-1);
+            isFirstPhaseComplete = true;
+        }
+
+        if(isPathClear(tempDir, visibleEntities))
+            return tempDir;
+        else
+            tempDir.rotateVector(10);
+    }
 }
+
+EntityPtr Agent::findTarget(std::vector<EntityPtr> visibleEntities) {
+    EntityPtr target = nullptr;
+    for (int i = 0; i < visibleEntities.size(); i++) {
+        if(dynamic_cast<Target *>(visibleEntities.at(i).get()) != nullptr) {
+            target = visibleEntities.at(i);
+        }
+    }
+    return target;
+}
+
+bool Agent::isPathToTargetClear(std::vector<EntityPtr> visibleEntities, EntityPtr target) {
+    Vector toTarget(target->getX() - this->getX(), target->getY() - this->getY());
+    for (auto& ePtr : visibleEntities) {
+            if (this->isObstacleInDirection(toTarget, ePtr)) {
+                return false;
+            }
+        }
+        return true;
+}
+
+bool Agent::isObstacleInDirection(Vector& dir, EntityPtr& entity) {
+    if(dynamic_cast<Obstacle *>(entity.get()) != nullptr) {
+        // Calculate the normal vector from the agent to the obstacle
+        Vector toEntity(entity->getX() - this->getX(), entity->getY() - this->getY());
+
+        // Calculate the dot product
+        float dot = dir.getI() * toEntity.getI() + dir.getJ() * toEntity.getJ();
+
+        // Calculate the angle between the vectors in degrees
+        float angle = acos(dot) * 180.0 / PI;
+
+        // Check if the obstacle is within the threshold angle
+        if (angle <= 0) {
+            return true;  // Obstacle is in the specified direction
+        } else
+            return false;
+
+    } else
+        return false; // The entity in direction is not even an obstacle
+}
+
+bool Agent::isPathClear(Vector &dir, std::vector<EntityPtr> visibleEntities) {
+    for (auto& ePtr : visibleEntities) {
+            if (this->isObstacleInDirection(dir, ePtr)) {
+                return false;
+            }
+        }
+        return true;
+}
+
 
 //move
-void Agent::move(World& world, Vector& v) {
+Vector Agent::move(World& world, Vector& dir) {
+    //mov - movement vector
+    float alpha = 1 - ((getWeight() * getSpeed()) / 100);
+    Vector v((1 - alpha) * mov.getI() + (alpha)*dir.getI(), (1 - alpha) * mov.getJ() + (alpha)*dir.getJ());
+    mov.setI(v.getI());
+    mov.setJ(v.getJ());
+    mov.makeUnit();
+
     //move this agent
     this->setX(this->getX() + 2 * (v.getI()));
     this->setY(this->getY() + 2 * (v.getJ()));

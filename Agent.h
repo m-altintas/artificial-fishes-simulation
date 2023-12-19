@@ -1,49 +1,65 @@
 #ifndef AGENT_H
 #define AGENT_H
 
-class Vector;
-class World;
-class Target;
+#include <math.h>
+#include <vector>
+#include <memory>
 
-class Agent {
+#include "Vector.h"
+#include "World.h"
+#include "Entity.h"
+#include "Target.h"
+
+#define PI 3.14159265358979323846
+
+typedef std::shared_ptr<Entity> EntityPtr;
+
+class Agent : public Entity{
 private:
     //-------Instance Variables
-    float x, y, indicX, indicY, weight, speed;
-    int width, height;
+    float eyeX, eyeY, sight, weight, speed;
+    std::vector<EntityPtr> percEntities;
+
+    //-------Private Methods
+    EntityPtr findTarget(std::vector<EntityPtr> visibleEntities);
+    bool isPathToTargetClear(std::vector<EntityPtr> visibleEntities, EntityPtr target);
+    bool isObstacleInDirection(Vector& dir, EntityPtr& entity);
+    bool isPathClear(Vector &dir, std::vector<EntityPtr> visibleEntities);
 
 public:
     //-------Constructors
-    Agent(float cx, float cy, float cWeight, float cSpeed, int cWidth, int cHeight);
+    Agent();
+    virtual ~Agent();
+    Agent(float cx, float cy, float cSight, float cWeight, float cSpeed, int cWidth, int cHeight);
+    Agent(float cx, float cy, float cSight);
 
     //-------Getters
-    float getX();
-    float getY();
-    float getIndicX();
-    float getIndicY();
+    float getEyeX();
+    float getEyeY();
+    float getSight();
     float getWeight();
     float getSpeed();
-    int getWidth();
-    int getHeight();
+    std::vector<EntityPtr> getPercEntities();
 
     //-------Setters
-    void setX(float newX);
-    void setY(float newY);
-    void setIndicX(float newIndicX);
-    void setIndicY(float newIndicY);
+    void setEyeX(float newEyeX);
+    void setEyeY(float newEyeY);
+    void setSight(float newSight);
     void setWeight(float newWeight);
     void setSpeed(float newSpeed);
-    void setWidth(int newWidth);
-    void setHeight(int newHeight);
+    void setPercEntities(std::vector<EntityPtr> newPercEntities);
 
     //-------Methods
     //percieve
-    float percieve(Target& target);
+    void percieve(World& world);
 
     //deciede
-    bool decide(Target& target, Vector& v1, Vector& v2);
+    Vector decide(Vector& mov);
 
     //move
-    void move(World& world, Vector& v);
+    Vector move(World& world, Vector& dir);
+
+    bool mission();
 };
 
 #endif

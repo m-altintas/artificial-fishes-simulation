@@ -1,29 +1,14 @@
 #ifndef OBSTACLE_H
 #define OBSTACLE_H
 
-class Obstacle {
-private:
-    //-------Instance Variables
-    float x, y;
-    int width, height;
+#include "Entity.h"
 
+class Obstacle : public Entity{
 public:
-    //-------Constructors
-    Obstacle(float cx, float cy, int cWidth, int cHeight);
-
-    //-------Getters
-    float getX();
-    float getY();
-    int getWidth();
-    int getHeight();
-
-    //-------Setters
-    void setX(float newX);
-    void setY(float newY);
-    void setWidth(int newWidth);
-    void setHeight(int newHeight);
-
-    //-------Methods
+	//-------Constructors
+	Obstacle();
+	virtual ~Obstacle();
+	Obstacle(float cx, float cy, int cWidth, int cHeight);
 };
 
 #endif

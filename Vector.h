@@ -1,6 +1,9 @@
 #ifndef VECTOR_H
 #define VECTOR_H
 
+#include <math.h>
+#define PI 3.14159265358979323846
+
 class Vector {
 private:
     //-------Instance Variables
@@ -21,6 +24,7 @@ public:
 
     //-------Methods
     void makeUnit();
+    void rotateVector(float angleDegrees);
 };
 
 

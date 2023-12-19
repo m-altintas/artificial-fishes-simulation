@@ -1,5 +1,4 @@
 #include "Vector.h"
-#include <math.h>
 
 //-------Constructors
 Vector::Vector() {
@@ -26,4 +25,11 @@ void Vector::makeUnit() {
 
     this->setI(this->getI() / length);
     this->setJ(this->getJ() / length);
+}
+
+void Vector::rotateVector(float angleDegrees) {
+    float radians = angleDegrees * PI / 180.0;
+
+    this->setI(this->getI() * cos(radians) - this->getJ() * sin(radians));
+    this->setJ(this->getI() * sin(radians) + this->getJ() * cos(radians));
 }

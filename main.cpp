@@ -13,15 +13,17 @@
 #include <fstream>
 #include <iomanip>
 #include <thread>
+#include <memory>
+
 #include "World.h"
 #include "Agent.h"
-#include "Obstacle.h"
 #include "Target.h"
+#include "Obstacle.h"
 #include "Vector.h"
 
 //test variables
 #define total_trial 100
-#define trial_batch_size 5
+#define trial_batch_size 1
 //pixel size to determine gui details
 #define pxSize 8
 //pre-defined sizes
@@ -34,6 +36,7 @@
 #define target_width 10
 #define target_height 10
 //Agent specifications
+#define agent_sight 5
 #define agent_weight 10
 #define agent_speed 2
 
@@ -42,6 +45,7 @@ using std::ofstream;
 using std::cout;
 using std::endl;
 
+typedef std::shared_ptr<Entity> EntityPtr;
 
 int main() {
     srand(time(0));
@@ -70,8 +74,6 @@ int main() {
     else
         txtrAgentEye.setSmooth(true);
 
-    //TODO: use sizes
-
     Sprite sprtBackground(txtrBackground);
     Sprite sprtAgent(txtrAgent);
     Sprite sprtTarget(txtrTarget);
@@ -81,22 +83,28 @@ int main() {
 
     //World initialization
     World world(world_width, world_height);
-    Agent agent(187.5, 25 + (rand() % (world.getHeight() / 2)), agent_weight, agent_speed, agent_width, agent_height); //TODO: more random spawn
-    Target target(7.5, 25 + (rand() % (world.getHeight() / 2)), target_width, target_height); //TODO: more random spawn
+    EntityPtr agent = std::make_shared<Agent>(20 + ((static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 160), (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 100, agent_sight, agent_weight, agent_speed, agent_width, agent_height);
+    EntityPtr target = std::make_shared<Target>(20 + ((static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 160), (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 100, target_width, target_height);
     world.worldInitialization(agent, target);
 
     int trialCount = 0;
     while (trialCount < total_trial) {
 
+        world.worldInitialization(agent, target);
+
         int innerTrialCount = 0;
         while (innerTrialCount < trial_batch_size) {
 
+            std::shared_ptr<Agent> agentPtr = std::dynamic_pointer_cast<Agent>(agent);
+            std::shared_ptr<Target> targetPtr = std::dynamic_pointer_cast<Target>(target);
+
             //Initialization of vectors and first view angle
-            Vector v1;
             float y = (0 + (double)(rand()) / (double)(RAND_MAX) / 1) - 1.0 / 2.0;
             float x = sqrt(1 - (y * y));
-            Vector v2(-x, y);
-            agent.setIndicX((agent.getX() + 2) + 2 * (v2.getI()));
+            Vector dir(-x, y);
+            Vector mov(dir.getI(), dir.getJ());
+
+            agentPtr->setEyeX((agentPtr->getX() + 2) + 2 * (dir.getI()));
 
             while (true) {
                 Event e;
@@ -104,9 +112,18 @@ int main() {
                     if (e.type == Event::Closed) window.close();
                 }
 
-                //TODO: Agent actions
+                //Agent actions
+                if(agentPtr->mission()) {
+                    agentPtr->percieve(world);
+                    dir = agentPtr->decide(mov);
+                    mov = agentPtr->move(world, dir);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                } else {
+                    //TODO: Mission accomplished
+                    break;
+                }
 
-                ///////draw
+                ///draw
                 window.clear();
 
                 //background
@@ -117,18 +134,23 @@ int main() {
                     }
 
                 //agent
-                sprtAgent.setPosition(agent.getX() * pxSize, agent.getY() * pxSize);
+                sprtAgent.setPosition(agentPtr->getX() * pxSize, agentPtr->getY() * pxSize);
                 window.draw(sprtAgent);
 
                 //target
-                sprtTarget.setPosition(target.getX() * pxSize, target.getY() * pxSize);
+                sprtTarget.setPosition(targetPtr->getX() * pxSize, targetPtr->getY() * pxSize);
                 window.draw(sprtTarget);
 
                 //obstacles
-                //TODO: obstacle array drawing
+                for (auto& entity : world.getEntities()) {
+                    if(dynamic_cast<Obstacle *>(entity.get()) != nullptr) {
+                        std::shared_ptr<Obstacle> obstaclePtr = std::dynamic_pointer_cast<Obstacle>(entity);
+                        sprtObstacle.setPosition(obstaclePtr->getX() * pxSize, obstaclePtr->getY() * pxSize);
+                        window.draw(sprtTarget);
+                    }
+                }
 
-                //TODO: direction indicator, agent's eye
-                sprtAgentEye.setPosition(agent.getIndicX() * pxSize, agent.getIndicY() * pxSize);
+                sprtAgentEye.setPosition(agentPtr->getEyeX() * pxSize, agentPtr->getEyeY() * pxSize);
                 window.draw(sprtAgentEye);
 
                 window.display();
